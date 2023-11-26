@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"io"
-	"log"
 
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -21,20 +20,20 @@ func generateMeta(filename string, salt []byte) string {
 func parseMeta(meta string) (filename string, salt []byte) {
 	decodedMeta, err := base64.StdEncoding.DecodeString(meta)
 	if err != nil {
-		log.Printf("Error decoding metadata: %v\n", err)
+		logger.Printf("Error decoding metadata: %v\n", err)
 		return
 	}
 
 	metaSplit := bytes.Split(decodedMeta, []byte("\u0000"))
 	if len(metaSplit) != 2 {
-		log.Printf("Invalid metadata\n")
+		logger.Printf("Invalid metadata\n")
 		return
 	}
 
 	filename = string(metaSplit[0])
 	salt, err = base64.StdEncoding.DecodeString(string(metaSplit[1]))
 	if err != nil {
-		log.Printf("Error decoding salt: %v\n", err)
+		logger.Printf("Error decoding salt: %v\n", err)
 		return
 	}
 
@@ -66,7 +65,8 @@ func decrypt(encryptedData []byte, key []byte, iv []byte) ([]byte, error) {
 	}
 
 	if len(encryptedData) < aes.BlockSize {
-		log.Fatal("ciphertext too short")
+		logger.Printf("ciphertext too short")
+		return nil, err
 	}
 
 	stream := cipher.NewCFBDecrypter(block, iv)
@@ -79,7 +79,8 @@ func decrypt(encryptedData []byte, key []byte, iv []byte) ([]byte, error) {
 func deriveKey(password string) (key []byte, salt []byte) {
 	salt = make([]byte, 8)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-		log.Fatal(err)
+		logger.Printf("Error generating salt: %v\n", err)
+		return nil, nil
 	}
 
 	key = pbkdf2.Key([]byte(password), salt, 4096, 32, sha256.New)

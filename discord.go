@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
-	"os"
+	"strconv"
 	"strings"
 )
 
@@ -31,7 +29,7 @@ func requestHeaders() *http.Header {
 
 func setToken(t string) bool {
 	if t == "" {
-		log.Printf("Token is empty\n")
+		logger.Printf("Token is empty\n")
 		return false
 	}
 
@@ -42,7 +40,7 @@ func setToken(t string) bool {
 	)
 
 	if err != nil {
-		log.Printf("Error setting token: %v\n", err)
+		logger.Printf("Error setting token: %v\n", err)
 		return false
 	}
 
@@ -52,12 +50,12 @@ func setToken(t string) bool {
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
-		log.Printf("Error setting token: %v\n", err)
+		logger.Printf("Error setting token: %v\n", err)
 		return false
 	}
 
 	if resp.StatusCode >= 300 {
-		log.Printf("Error setting token: %v\n", resp.Status)
+		logger.Printf("Error setting token: %v\n", resp.Status)
 		return false
 	}
 
@@ -206,78 +204,25 @@ func createChannel(name string, topic string, t int) (ch *map[string]interface{}
 
 func intialize() {
 	if err := getChannels(); err != nil {
-		log.Fatalf("Error getting channels: %v", err)
+		logger.Printf("Error getting channels: %v", err)
+		return
 	}
 
 	if manfiestChannelID == "" {
-		log.Printf("Manifest channel not found, creating...\n")
+		logger.Printf("Manifest channel not found, creating...\n")
 		if _, err := createChannel("discord-fs-manifest", "discord-fs-manifest", 0); err != nil {
 			panic(fmt.Sprintf("Error creating manifest channel: %v", err))
 		}
 	}
 
 	if len(dataChannels) == 0 {
-		log.Printf("Data channel not found, creating...\n")
+		logger.Printf("Data channel not found, creating...\n")
 		if _, err := createChannel("discord-fs-data", "discord-fs-data", 0); err != nil {
 			panic(fmt.Sprintf("Error creating data channel: %v", err))
 		}
 	}
 
-	log.Printf("Found manifest channel: %s\nFound %d data channels\n", manfiestChannelID, len(dataChannels))
-}
-
-func handleCommand(cmd string) error {
-	parts := strings.Split(cmd, " ")
-
-	switch parts[0] {
-	case "init":
-		intialize()
-	case "send":
-		if len(parts) != 2 {
-			return fmt.Errorf("Invalid send command")
-		}
-		cf, err := chunkFile(parts[1])
-
-		if err != nil {
-			return fmt.Errorf("Error chunking file: %v", err)
-		}
-
-		log.Printf("Chunked file %s into %d chunks\n", cf.name, len(cf.data))
-
-		return sendChunkedFile(cf)
-	case "fetch":
-		if len(parts) != 2 {
-			return fmt.Errorf("Invalid fetch command")
-		}
-
-		cf, err := assembleChunkedFile(parts[1])
-
-		if err != nil {
-			return fmt.Errorf("Error assembling file: %v", err)
-		}
-
-		return reconstructFile(cf, fmt.Sprintf("%s.dec", cf.name))
-	}
-
-	return nil
-}
-
-func readPump() {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("Enter command: ")
-		command, err := reader.ReadString('\n')
-		if err != nil {
-			log.Printf("Error reading command: %v\n", err)
-			continue
-		}
-
-		command = strings.TrimSpace(command)
-
-		if err := handleCommand(command); err != nil {
-			log.Printf("Error handling command \"%s\": %v\n", command, err)
-		}
-	}
+	logger.Printf("Found manifest channel: %s\nFound %d data channels\n", manfiestChannelID, len(dataChannels))
 }
 
 type messageCreate struct {
@@ -355,6 +300,11 @@ func sendDiscordAttachment(message messageCreate) (string, error) {
 func sendChunkedFile(f *chunkedFile) (err error) {
 	metaString := generateMeta(f.name, f.salt)
 
+	dataSize := 0
+	for _, chunk := range f.data {
+		dataSize += len(chunk)
+	}
+
 	lastMessageID := ""
 	for n, chunk := range f.data {
 		message := messageCreate{
@@ -368,12 +318,20 @@ func sendChunkedFile(f *chunkedFile) (err error) {
 			message.Content = metaString
 		}
 
+		logger.AddLine(
+			fmt.Sprintf("send_%s", f.name),
+			fmt.Sprintf("%s: sending attachment %d (size %d); %s", f.name, n+1, dataSize, ProgressBarUtil(n+1, len(f.data))),
+		)
+
 		lastMessageID, err = sendDiscordAttachment(message)
 
 		if err != nil {
 			return err
 		}
 	}
+
+	logger.RemoveLine(fmt.Sprintf("send_%s", f.name))
+	logger.Printf("%s: sending attachment %d (size %d); %s\n", f.name, len(f.data), dataSize, ProgressBarUtil(1, 1))
 
 	var payload = map[string]interface{}{
 		"content": fmt.Sprintf("%s\n%s", metaString, lastMessageID),
@@ -407,7 +365,7 @@ func sendChunkedFile(f *chunkedFile) (err error) {
 		return fmt.Errorf("Error sending manifest: %v", resp.Status)
 	}
 
-	log.Printf("Sent file %s, reference %s\n", f.name, lastMessageID)
+	logger.Printf("Sent file %s, reference %s\n", f.name, lastMessageID)
 
 	return nil
 }
@@ -431,7 +389,7 @@ func downloadChunk(url string) ([]byte, error) {
 	return data, nil
 }
 
-func assembleChunkedFile(chainEndId string) (cf *chunkedFile, err error) {
+func fetchChunkedFile(chainEndId string) (cf *chunkedFile, err error) {
 	cf = &chunkedFile{}
 
 	lastMessage, err := getMessage(dataChannels[0], chainEndId)
@@ -439,7 +397,25 @@ func assembleChunkedFile(chainEndId string) (cf *chunkedFile, err error) {
 		return nil, err
 	}
 
-	log.Printf("Downloading attachment %s, size %d\n", lastMessage.Attachments[0].Filename, lastMessage.Attachments[0].Size)
+	chunkNumberStr := strings.Split(lastMessage.Attachments[0].Filename, ".")[0]
+	chunkNumber, err := strconv.Atoi(chunkNumberStr)
+
+	if err != nil {
+		logger.Printf("Error parsing chunk number: %v\n", err)
+		chunkNumber = -1
+	}
+
+	chunkNumber++
+
+	chunkCount := chunkNumber
+
+	logger.Printf("Starting download for reference %s, inferring %d chunks\n", chainEndId, chunkNumber)
+	logger.AddLine(
+		fmt.Sprintf("download_%s", chainEndId),
+		fmt.Sprintf("%s: downloading attachment %d (size %d); %s", chainEndId, chunkNumber, lastMessage.Attachments[0].Size, ProgressBarUtil(chunkCount-chunkNumber, chunkCount)),
+	)
+
+	logger.Flush()
 
 	data, err := downloadChunk(lastMessage.Attachments[0].URL)
 
@@ -462,7 +438,23 @@ func assembleChunkedFile(chainEndId string) (cf *chunkedFile, err error) {
 			return nil, err
 		}
 
-		log.Printf("Downloading attachment %s, size %d\n", lastMessage.Attachments[0].Filename, lastMessage.Attachments[0].Size)
+		chunkNumberStr = strings.Split(lastMessage.Attachments[0].Filename, ".")[0]
+
+		chunkNumber, err := strconv.Atoi(chunkNumberStr)
+
+		if err != nil {
+			logger.Printf("Error parsing chunk number: %v\n", err)
+			chunkNumber = -1
+		}
+
+		chunkNumber++
+
+		logger.AddLine(
+			fmt.Sprintf("download_%s", chainEndId),
+			fmt.Sprintf("%s: downloading attachment %d (size %d); %s", chainEndId, chunkNumber, lastMessage.Attachments[0].Size, ProgressBarUtil(chunkCount-chunkNumber, chunkCount)),
+		)
+
+		logger.Flush()
 
 		data, err := downloadChunk(lastMessage.Attachments[0].URL)
 
@@ -480,7 +472,9 @@ func assembleChunkedFile(chainEndId string) (cf *chunkedFile, err error) {
 
 	cf.name, cf.salt = parseMeta(metaString)
 
-	log.Printf("Assembled file %s, salt %s\n", cf.name, cf.salt)
+	logger.Printf("%s: downloading attachment %d (size %d); %s", chainEndId, chunkNumber, lastMessage.Attachments[0].Size, ProgressBarUtil(1, 1))
+	logger.RemoveLine(fmt.Sprintf("download_%s", chainEndId))
+	logger.Printf("Fetched file %s out of %d chunks\n", cf.name, len(cf.data))
 
 	return cf, nil
 }

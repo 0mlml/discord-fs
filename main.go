@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 
 	"github.com/0mlml/cfgparser"
 )
@@ -10,6 +9,7 @@ import (
 var (
 	config     *cfgparser.Config
 	configPath = flag.String("config", "discord-fs.cfg", "Path to config file")
+	logger     = NewLogger()
 )
 
 func main() {
@@ -17,7 +17,9 @@ func main() {
 
 	defaultConfig := &cfgparser.Config{}
 	defaultConfig.Literal(
-		map[string]bool{},
+		map[string]bool{
+			"advanced_terminal": true,
+		},
 		map[string]string{
 			"discord_token": "YOUR_TOKEN # Generate a token here: https://discord.com/developers/applications",
 			"server_id":     "111111111111111111 # The server to generate files in",
@@ -33,16 +35,22 @@ func main() {
 
 	config = &cfgparser.Config{}
 	if err := config.From(*configPath); err != nil {
-		log.Fatalf("Error parsing config file: %v", err)
+		logger.Printf("Error parsing config file: %v", err)
+		return
 	}
 
 	if !setToken(config.String("discord_token")) {
-		log.Fatalf("Error setting token")
+		logger.Printf("Error setting token")
+		return
 	}
 
 	intialize()
 
-	log.Printf("Ready\n")
+	logger.Printf("Ready\n")
 
-	readPump()
+	if config.Bool("advanced_terminal") {
+		advancedReadPump()
+	} else {
+		simpleReadPump()
+	}
 }

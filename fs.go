@@ -90,5 +90,7 @@ func reconstructFile(f *chunkedFile, outputPath string) error {
 		}
 	}
 
+	logger.Printf("Reconstructed file %s\n", f.name)
+
 	return nil
 }

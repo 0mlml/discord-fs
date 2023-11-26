@@ -37,3 +37,4 @@ The config file is located at `config.json`. It contains the following fields:
 - `server_id` - The ID of the server that the bot will be running on
 - `your_key` - The key used to encrypt the file. This should be a long, random string. 
 - `max_file_size` - The maximum file size in bytes. This should be less than 25MB, with a bit of wiggle room.
+- `advanced_terminal` - Try to allow advanced features like moving the cursor, tab completion, history. This might not work on all terminals.
