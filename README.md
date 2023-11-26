@@ -2,6 +2,12 @@
 ## Inspiration
 I was inspired by [this](https://www.youtube.com/watch?v=c_arQ-6ElYI) video. It used node.js with a React frontend. I saw several improvements that could be made, so I decided to make my own version in Golang.
 
+## Features
+- `send <fname>` - Send a file to Discord by filename
+- `fetch <reference>` - Get a file from Discord using the message ID printed in console and the manifest channel
+- `init` - Refresh channel ids. Done automatically on startup.
+- Tab completion and left+right arrow key movement - From scratch.
+- Minimal dependencies - Only requires my [cfg package](https://github.com/0mlml/cfgparser) (which has zero dependencies), the [golang.org/x/crypto](https://pkg.go.dev/golang.org/x/crypto) package, and the standard library.
 ## How it works
 #### Chunking
 The file is split into chunks of roughly 25MB. The actual size is a bit lower to account for encryption overhead. 
@@ -22,7 +28,7 @@ Why not a database? - I wanted to keep this as stateless as possible. For now yo
 #### Assembly 
 The chunks are downloaded, reversed, and decrypted. The decrypted chunks are then written to a file.
 
-![Console](https://github.com/0mlml/discord-fs/blob/main/.github/console-ss.png)
+![Demo](https://github.com/0mlml/discord-fs/blob/main/.github/demo.gif)
 ### Test script
 Here is a quick bash script to generate a large file to test with:
 ```bash
@@ -37,4 +43,4 @@ The config file is located at `config.json`. It contains the following fields:
 - `server_id` - The ID of the server that the bot will be running on
 - `your_key` - The key used to encrypt the file. This should be a long, random string. 
 - `max_file_size` - The maximum file size in bytes. This should be less than 25MB, with a bit of wiggle room.
-- `advanced_terminal` - Try to allow advanced features like moving the cursor, tab completion, history. This might not work on all terminals.
+- `advanced_terminal` - Try to allow advanced features like moving the cursor and tab completion. This might not work on all terminals.
