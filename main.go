@@ -24,7 +24,7 @@ func main() {
 			"your_key":      "YOUR_KEY # The key to encrypt files with",
 		},
 		map[string]int{
-			"max_file_size": 24214400
+			"max_file_size": 24214400,
 		},
 		map[string]float64{},
 	)
