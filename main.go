@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"runtime"
 
 	"github.com/0mlml/cfgparser"
 )
@@ -49,9 +50,11 @@ func main() {
 
 	logger.Printf("Ready\n")
 
-	if config.Bool("advanced_terminal") {
-		advancedReadPump()
-	} else {
-		simpleReadPump()
+	if runtime.GOOS == "linux" || runtime.GOOS == "darwin" {
+		if config.Bool("advanced_terminal") {
+			advancedReadPump()
+			return
+		}
 	}
+	simpleReadPump()
 }

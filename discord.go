@@ -382,7 +382,7 @@ func sendChunkedFile(f *chunkedFile) (err error) {
 	}
 
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("Error sending manifest: %v", resp.Status)
+		return fmt.Errorf("error sending manifest: %v", resp.Status)
 	}
 
 	logger.Printf("Sent file %s, reference %s\n", f.name, lastMessageID)
