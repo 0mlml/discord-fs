@@ -209,7 +209,7 @@ func handleTabCompletion(parts []string) ([]string, error) {
 	search := parts[len(parts)-1]
 
 	switch len(parts) {
-	case 1: // Command
+	case 1:
 		for _, command := range []string{"init", "send", "fetch"} {
 			if strings.HasPrefix(command, search) {
 				options = append(options, command)
@@ -217,9 +217,9 @@ func handleTabCompletion(parts []string) ([]string, error) {
 		}
 
 		return options, nil
-	case 2: // Subcommand
+	case 2:
 		switch parts[0] {
-		case "send": // Search files
+		case "send":
 			path := "."
 			if strings.Contains(search, "/") {
 				parts := strings.Split(search, "/")
@@ -243,7 +243,7 @@ func handleTabCompletion(parts []string) ([]string, error) {
 			}
 
 			return options, nil
-		case "fetch": // Search cache
+		case "fetch":
 			for _, id := range idHistory {
 				if strings.HasPrefix(id, search) {
 					options = append(options, id)

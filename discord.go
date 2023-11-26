@@ -17,7 +17,7 @@ const (
 
 var (
 	token     string
-	idHistory = make([]string, 0) // autocomplete
+	idHistory = make([]string, 0)
 )
 
 func requestHeaders() *http.Header {

@@ -29,14 +29,26 @@ Why not a database? - I wanted to keep this as stateless as possible. For now yo
 The chunks are downloaded, reversed, and decrypted. The decrypted chunks are then written to a file.
 
 ![Demo](https://github.com/0mlml/discord-fs/blob/main/.github/demo.gif)
-### Test script
-Here is a quick bash script to generate a large file to test with:
+
+## Limitations
+- Each chunk is limited to 25MB. This is a limitation of Discord's API.
+- Uploads can only be performed one at a time. This is because we need the message ID of the previous message to chain the chunks.
+- Downloads are only performed one at a time. This could hypothetically be fixed, where the chain is walked first and then the chunks are downloaded in parallel.
+- The filename is not concealed in any way. I didn't think this was necessary, but it could be added in the future.
+- There's no way to catalogue your files. The manifest channel is the best way to keep track of message IDs. 
+## Useful scripts
+Bash script to generate a large file to test with:
 ```bash
 #!/bin/bash
 size="80M"
 dd if=/dev/urandom of="$size"file.bin bs="$size" count=1
-``````
-
+```
+Bash script to decode a meta into the filename:
+```bash
+#!/bin/bash
+meta="Li9oZWxsb3dvcmxkLnR4dAAzSEcxSDJQUmhvcz0="
+echo "$meta" | base64 -d | awk 'BEGIN{RS="\0"} NR==1'
+```
 ## Config
 The config file is located at `config.json`. It contains the following fields:
 - `discord_token` - The token of the bot, generated from the [Discord Developer Portal](https://discord.com/developers/applications)

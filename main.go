@@ -26,7 +26,7 @@ func main() {
 			"your_key":      "YOUR_KEY # The key to encrypt files with",
 		},
 		map[string]int{
-			"max_file_size": 24214400,
+			"max_file_size": 24214400, // This is arbitary, I just lowered it from 25MB until it worked
 			"max_retry":     5,
 		},
 		map[string]float64{},
