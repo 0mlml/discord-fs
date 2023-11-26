@@ -16,7 +16,8 @@ const (
 )
 
 var (
-	token string
+	token     string
+	idHistory = make([]string, 0) // autocomplete
 )
 
 func requestHeaders() *http.Header {
@@ -316,11 +317,12 @@ func sendChunkedFile(f *chunkedFile) (err error) {
 	}
 
 	lastMessageID := ""
-	for n, chunk := range f.data {
+	attempt := 1
+	for n := 0; n < len(f.data); n++ {
 		message := messageCreate{
 			ChannelID:   dataChannels[n%len(dataChannels)],
 			ReferenceID: lastMessageID,
-			Data:        chunk,
+			Data:        f.data[n],
 			FileName:    fmt.Sprintf("%d.enc", n),
 		}
 
@@ -336,7 +338,15 @@ func sendChunkedFile(f *chunkedFile) (err error) {
 		lastMessageID, err = sendDiscordAttachment(message)
 
 		if err != nil {
-			return err
+			logger.Printf("Error sending chunk %d: %v. Attempt %d/%d\n", n, err, attempt, config.Int("max_retry"))
+
+			if attempt >= config.Int("max_retry") {
+				logger.Printf("Aborting send of %s\n", f.name)
+				return err
+			}
+
+			attempt++
+			n--
 		}
 	}
 
@@ -376,6 +386,8 @@ func sendChunkedFile(f *chunkedFile) (err error) {
 	}
 
 	logger.Printf("Sent file %s, reference %s\n", f.name, lastMessageID)
+
+	idHistory = append(idHistory, lastMessageID)
 
 	return nil
 }

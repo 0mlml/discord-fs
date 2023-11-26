@@ -153,7 +153,7 @@ func readInput() (string, error) {
 		case c == '\t':
 			parts := strings.Split(b.String(), " ")
 			if tabCompletionIndex == -1 {
-				tabCompletionOptions, err = handleTabCompletion(parts[len(parts)-1])
+				tabCompletionOptions, err = handleTabCompletion(parts)
 
 				if err != nil {
 					continue
@@ -204,17 +204,53 @@ func updateDisplay(b *strings.Builder, cursorPos int) {
 	}
 }
 
-func handleTabCompletion(search string) ([]string, error) {
-	files, err := os.ReadDir(".")
-	if err != nil {
-		return nil, err
-	}
-
+func handleTabCompletion(parts []string) ([]string, error) {
 	options := make([]string, 0)
+	search := parts[len(parts)-1]
 
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), search) {
-			options = append(options, file.Name())
+	switch len(parts) {
+	case 1: // Command
+		for _, command := range []string{"init", "send", "fetch"} {
+			if strings.HasPrefix(command, search) {
+				options = append(options, command)
+			}
+		}
+
+		return options, nil
+	case 2: // Subcommand
+		switch parts[0] {
+		case "send": // Search files
+			path := "."
+			if strings.Contains(search, "/") {
+				parts := strings.Split(search, "/")
+				search = parts[len(parts)-1]
+				path = strings.Join(parts[:len(parts)-1], "/")
+			}
+
+			files, err := os.ReadDir(path)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, file := range files {
+				if strings.HasPrefix(file.Name(), search) {
+					if file.IsDir() {
+						options = append(options, fmt.Sprintf("%s/%s/", path, file.Name()))
+					} else {
+						options = append(options, fmt.Sprintf("%s/%s", path, file.Name()))
+					}
+				}
+			}
+
+			return options, nil
+		case "fetch": // Search cache
+			for _, id := range idHistory {
+				if strings.HasPrefix(id, search) {
+					options = append(options, id)
+				}
+			}
+
+			return options, nil
 		}
 	}
 	return options, nil
@@ -222,6 +258,7 @@ func handleTabCompletion(search string) ([]string, error) {
 
 func advancedReadPump() {
 	for {
+		logger.Flush()
 		logger.Printf("Enter command: ")
 		command, err := readInput()
 		if err != nil {

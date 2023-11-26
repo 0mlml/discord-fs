@@ -27,6 +27,7 @@ func main() {
 		},
 		map[string]int{
 			"max_file_size": 24214400,
+			"max_retry":     5,
 		},
 		map[string]float64{},
 	)
