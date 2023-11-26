@@ -213,12 +213,22 @@ func intialize() {
 		if _, err := createChannel("discord-fs-manifest", "discord-fs-manifest", 0); err != nil {
 			panic(fmt.Sprintf("Error creating manifest channel: %v", err))
 		}
+
+		if err := getChannels(); err != nil {
+			logger.Printf("Error getting channels: %v", err)
+			return
+		}
 	}
 
 	if len(dataChannels) == 0 {
 		logger.Printf("Data channel not found, creating...\n")
 		if _, err := createChannel("discord-fs-data", "discord-fs-data", 0); err != nil {
 			panic(fmt.Sprintf("Error creating data channel: %v", err))
+		}
+
+		if err := getChannels(); err != nil {
+			logger.Printf("Error getting channels: %v", err)
+			return
 		}
 	}
 
