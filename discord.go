@@ -131,10 +131,10 @@ type discordMessageReference struct {
 }
 
 type discordMessage struct {
-	ID          string              `json:"id"`
-	Content     string              `json:"content"`
-	Attachments []discordAttachment `json:"attachments"`
-	Reference   discordMessageReference
+	ID          string                  `json:"id"`
+	Content     string                  `json:"content"`
+	Attachments []discordAttachment     `json:"attachments"`
+	Reference   discordMessageReference `json:"message_reference"`
 }
 
 func getMessage(channelID string, messageID string) (message *discordMessage, err error) {
@@ -241,6 +241,8 @@ func handleCommand(cmd string) error {
 		if err != nil {
 			return fmt.Errorf("Error chunking file: %v", err)
 		}
+
+		log.Printf("Chunked file %s into %d chunks\n", cf.name, len(cf.data))
 
 		return sendChunkedFile(cf)
 	case "fetch":
